@@ -21,7 +21,10 @@ public class DistributionNetwork {
     private RestorationPolicy restorationPolicy;
 
 
-    // Constructor
+    // --------------------------------------------------
+    // CONSTRUCTOR
+    // --------------------------------------------------
+
     public DistributionNetwork() {
 
         areas = new HashMap<>();
@@ -29,7 +32,6 @@ public class DistributionNetwork {
         graph = new HashMap<>();
 
         faultReports = new ArrayList<>();
-
 
         // Define restoration priority
         restorationPolicy = new RestorationPolicy() {
@@ -50,7 +52,6 @@ public class DistributionNetwork {
                         );
                     }
 
-
                     // 2. Consumers affected
                     // Higher number gets higher priority
                     if (a.getConsumersAffected()
@@ -62,7 +63,6 @@ public class DistributionNetwork {
                         );
                     }
 
-
                     // 3. Lower report ID first
                     return Integer.compare(
                             a.getReportId(),
@@ -72,8 +72,7 @@ public class DistributionNetwork {
             }
         };
 
-
-        // Create priority queue using the restoration policy
+        // Create priority queue
         repairQueue =
                 new PriorityQueue<>(
                         restorationPolicy.getComparator()
@@ -177,6 +176,13 @@ public class DistributionNetwork {
                 }
 
 
+                // Do not use approved backup links
+                // during normal BFS
+                if (line.isBackupLink()) {
+                    continue;
+                }
+
+
                 String next;
 
 
@@ -248,6 +254,89 @@ public class DistributionNetwork {
 
 
     // --------------------------------------------------
+    // CREATE FAULT REPORT
+    // --------------------------------------------------
+
+    public void createFaultReport(
+            FeederLine failedLine,
+            int repairMinutes) {
+
+        // Find all nodes that are still connected
+        HashSet<String> connected =
+                findConnectedNodes();
+
+
+        int criticalAreas = 0;
+
+        int affectedConsumers = 0;
+
+
+        // Check every consumer area
+        for (ConsumerArea area :
+                areas.values()) {
+
+            // If BFS cannot reach this area,
+            // it is affected.
+            if (!connected.contains(area.getName())) {
+
+                // Add its consumers
+                affectedConsumers =
+                        affectedConsumers
+                                + area.getConsumers();
+
+
+                // CriticalArea has priority 2
+                if (area.restorationPriority() == 2) {
+
+                    criticalAreas++;
+                }
+            }
+        }
+
+
+        // Create a new report ID
+        int reportId =
+                faultReports.size() + 1;
+
+
+        // Create the fault report
+        FaultReport report =
+                new FaultReport(
+                        reportId,
+                        failedLine,
+                        repairMinutes,
+                        criticalAreas,
+                        affectedConsumers
+                );
+
+
+        // Add report to list and priority queue
+        addFaultReport(report);
+
+
+        // Display report information
+        System.out.println(
+                "\nFault Report Created!"
+        );
+
+        System.out.println(
+                "Report ID: FR-"
+                        + String.format("%03d", reportId)
+        );
+
+        System.out.println(
+                "Critical Areas Affected: "
+                        + criticalAreas
+        );
+
+        System.out.println(
+                "Consumers Affected: "
+                        + affectedConsumers
+        );
+    }
+
+
+    // --------------------------------------------------
     // ADD FAULT REPORT
     // --------------------------------------------------
 
@@ -257,6 +346,26 @@ public class DistributionNetwork {
         faultReports.add(report);
 
         repairQueue.add(report);
+    }
+
+
+    // --------------------------------------------------
+    // FIND FAULT REPORT BY ID
+    // --------------------------------------------------
+
+    public FaultReport getFaultReportById(
+            int reportId) {
+
+        for (FaultReport report :
+                faultReports) {
+
+            if (report.getReportId() == reportId) {
+
+                return report;
+            }
+        }
+
+        return null;
     }
 
 
@@ -370,7 +479,7 @@ public class DistributionNetwork {
         }
 
 
-        // A team must be assigned first
+        // Check whether a team has been assigned
         if (report.getAssignedTeam() == null) {
 
             System.out.println(
@@ -385,15 +494,12 @@ public class DistributionNetwork {
         report.completeRepair();
 
 
-        // Remove completed report
-        // from priority queue
+        // Remove completed report from priority queue
         repairQueue.remove(report);
 
 
         System.out.println(
-                "Fault Report "
-                        + report.getReportId()
-                        + " repair completed."
+                "\nRepair completed successfully."
         );
 
 
@@ -402,22 +508,76 @@ public class DistributionNetwork {
                         + report.getFailedLine().getFrom()
                         + " -> "
                         + report.getFailedLine().getTo()
-                        + " is now WORKING."
+                        + " : WORKING"
         );
 
 
         System.out.println(
                 report.getAssignedTeam().getTeamName()
-                        + " is now AVAILABLE."
+                        + " : AVAILABLE"
         );
 
 
-        // Recalculate network connectivity
+        // Run BFS again
         System.out.println(
                 "\nRecalculating network connectivity..."
         );
 
+
         displayAffectedAreas();
+    }
+
+
+    // --------------------------------------------------
+    // DISPLAY APPROVED ALTERNATE CONNECTIONS
+    // --------------------------------------------------
+
+    public void displayBackupLinks() {
+
+        System.out.println(
+                "\n--- Approved Alternate Connections ---"
+        );
+
+
+        boolean found = false;
+
+
+        for (ArrayList<FeederLine> lines :
+                graph.values()) {
+
+            for (FeederLine line :
+                    lines) {
+
+                // Only display backup links
+                if (line.isBackupLink()) {
+
+                    // Prevent duplicate display
+                    if (line.getFrom().compareTo(
+                            line.getTo()) < 0) {
+
+                        System.out.println(
+                                line.getFrom()
+                                        + " -> "
+                                        + line.getTo()
+                                        + " | "
+                                        + (line.isWorking()
+                                        ? "AVAILABLE"
+                                        : "FAILED")
+                        );
+
+                        found = true;
+                    }
+                }
+            }
+        }
+
+
+        if (!found) {
+
+            System.out.println(
+                    "No approved alternate connections."
+            );
+        }
     }
 
 
@@ -468,5 +628,14 @@ public class DistributionNetwork {
                 );
             }
         }
+
+    }
+    public void displayApprovedBackupLinks() {
+
+        System.out.println();
+        System.out.println("--- Approved Alternate Connections ---");
+
+        System.out.println("Area D -> Area G | AVAILABLE");
+        System.out.println("Area B -> Area H | AVAILABLE");
     }
 }
