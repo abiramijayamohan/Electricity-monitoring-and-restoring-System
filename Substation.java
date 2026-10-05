@@ -30,18 +30,4 @@ public class Substation {
         active = true;
     }
 
-    public void displaySubstation() {
-        String status;
-
-        if (active) {
-            status = "ACTIVE";
-        } else {
-            status = "FAILED";
-        }
-
-        System.out.println(
-                id + " - " + name +
-                        " | " + status
-        );
-    }
 }

@@ -1,7 +1,6 @@
 import java.util.Scanner;
 
 class Main {
-      int a = 10;
 
     public static void main(String[] args) {
 
@@ -11,7 +10,8 @@ class Main {
         // CREATE DISTRIBUTION NETWORK
         // ==========================================
 
-        DistributionNetwork network = new DistributionNetwork();
+        DistributionNetwork network =
+                new DistributionNetwork();
 
 
         // ==========================================
@@ -224,7 +224,7 @@ class Main {
 
         int choice = 0;
 
-        while (choice != 7) {
+        while (choice != 8) {
 
             System.out.println();
             System.out.println("========================================");
@@ -237,7 +237,8 @@ class Main {
             System.out.println("4. View Repair Priority");
             System.out.println("5. Assign Repair Team");
             System.out.println("6. Complete Repair");
-            System.out.println("7. Exit");
+            System.out.println("7. View Approved Alternate Connections");
+            System.out.println("8. Exit");
 
             System.out.print("\nEnter your choice: ");
 
@@ -311,30 +312,39 @@ class Main {
                 if (lineChoice == 1) {
                     selectedLine = line1;
                 }
+
                 else if (lineChoice == 2) {
                     selectedLine = line2;
                 }
+
                 else if (lineChoice == 3) {
                     selectedLine = line3;
                 }
+
                 else if (lineChoice == 4) {
                     selectedLine = line4;
                 }
+
                 else if (lineChoice == 5) {
                     selectedLine = line5;
                 }
+
                 else if (lineChoice == 6) {
                     selectedLine = line6;
                 }
+
                 else if (lineChoice == 7) {
                     selectedLine = line7;
                 }
+
                 else if (lineChoice == 8) {
                     selectedLine = line8;
                 }
+
                 else if (lineChoice == 9) {
                     selectedLine = line9;
                 }
+
                 else if (lineChoice == 10) {
                     selectedLine = line10;
                 }
@@ -346,8 +356,19 @@ class Main {
                             "Invalid line selection."
                     );
 
-                } else {
+                }
 
+                else if (!selectedLine.isWorking()) {
+
+                    System.out.println(
+                            "This line has already failed."
+                    );
+
+                }
+
+                else {
+
+                    // Fail the selected line
                     selectedLine.failLine();
 
                     System.out.println(
@@ -367,6 +388,13 @@ class Main {
 
                     // Detect affected areas
                     network.displayAffectedAreas();
+
+
+                    // Create fault report
+                    network.createFaultReport(
+                            selectedLine,
+                            repairTime
+                    );
                 }
             }
 
@@ -388,33 +416,11 @@ class Main {
             else if (choice == 5) {
 
                 System.out.println(
-                        "\nSelect Repair Team:"
-                );
-
-                System.out.println(
-                        "1. Team Alpha"
-                );
-
-                System.out.println(
-                        "2. Team Beta"
-                );
-
-                System.out.println(
-                        "3. Team Gamma"
+                        "\n--- Assign Repair Team ---"
                 );
 
                 System.out.print(
-                        "Enter team number: "
-                );
-
-                int teamChoice =
-                        scanner.nextInt();
-
-                scanner.nextLine();
-
-
-                System.out.println(
-                        "\nEnter Fault Report ID: "
+                        "Enter Fault Report ID: "
                 );
 
                 int reportId =
@@ -423,20 +429,78 @@ class Main {
                 scanner.nextLine();
 
 
-                System.out.println(
-                        "Note: Fault reports must be "
-                                + "created in the restoration workflow."
-                );
+                // Find the fault report
+                FaultReport report =
+                        network.getFaultReportById(reportId);
 
-                System.out.println(
-                        "Team selection received: "
-                                + teamChoice
-                );
 
-                System.out.println(
-                        "Report ID received: "
-                                + reportId
-                );
+                if (report == null) {
+
+                    System.out.println(
+                            "Fault Report not found."
+                    );
+
+                } else {
+
+                    System.out.println(
+                            "\nAvailable Repair Teams:"
+                    );
+
+                    System.out.println(
+                            "1. Team Alpha"
+                    );
+
+                    System.out.println(
+                            "2. Team Beta"
+                    );
+
+                    System.out.println(
+                            "3. Team Gamma"
+                    );
+
+
+                    System.out.print(
+                            "\nSelect team: "
+                    );
+
+                    int teamChoice =
+                            scanner.nextInt();
+
+                    scanner.nextLine();
+
+
+                    RepairTeam selectedTeam = null;
+
+
+                    if (teamChoice == 1) {
+
+                        selectedTeam = team1;
+
+                    } else if (teamChoice == 2) {
+
+                        selectedTeam = team2;
+
+                    } else if (teamChoice == 3) {
+
+                        selectedTeam = team3;
+
+                    } else {
+
+                        System.out.println(
+                                "Invalid team selection."
+                        );
+                    }
+
+
+                    // Assign the selected team
+                    if (selectedTeam != null) {
+
+                        network.assignRepairTeam(
+                                report,
+                                selectedTeam
+                        );
+                    }
+                }
             }
 
 
@@ -447,10 +511,46 @@ class Main {
             else if (choice == 6) {
 
                 System.out.println(
-                        "\nRepair completion will be "
-                                + "connected to the selected "
-                                + "fault report."
+                        "\n--- Complete Repair ---"
                 );
+
+
+                System.out.print(
+                        "Enter Fault Report ID: "
+                );
+
+                int reportId =
+                        scanner.nextInt();
+
+                scanner.nextLine();
+
+
+                // Find the fault report
+                FaultReport report =
+                        network.getFaultReportById(reportId);
+
+
+                if (report == null) {
+
+                    System.out.println(
+                            "Fault Report not found."
+                    );
+
+                } else {
+
+                    // Complete the repair
+                    network.completeRepair(report);
+                }
+            }
+
+
+            // ======================================
+            // OPTION 7 - APPROVED ALTERNATE LINKS
+            // ======================================
+
+            else if (choice == 7) {
+
+                network.displayApprovedBackupLinks();
             }
 
 
@@ -458,7 +558,7 @@ class Main {
             // INVALID OPTION
             // ======================================
 
-            else if (choice != 7) {
+            else if (choice != 8) {
 
                 System.out.println(
                         "\nInvalid choice. Please try again."
