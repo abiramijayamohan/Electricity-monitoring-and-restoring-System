@@ -20,6 +20,9 @@ public class DistributionNetwork {
     // Restoration policy
     private RestorationPolicy restorationPolicy;
 
+    // Stores backup links that have been activated by the operator
+    private HashSet<FeederLine> activeBackupLinks;
+
 
     // --------------------------------------------------
     // CONSTRUCTOR
@@ -32,6 +35,10 @@ public class DistributionNetwork {
         graph = new HashMap<>();
 
         faultReports = new ArrayList<>();
+
+        // Backup links are inactive when the system starts
+        activeBackupLinks = new HashSet<>();
+
 
         // Define restoration priority
         restorationPolicy = new RestorationPolicy() {
@@ -52,6 +59,7 @@ public class DistributionNetwork {
                         );
                     }
 
+
                     // 2. Consumers affected
                     // Higher number gets higher priority
                     if (a.getConsumersAffected()
@@ -63,6 +71,7 @@ public class DistributionNetwork {
                         );
                     }
 
+
                     // 3. Lower report ID first
                     return Integer.compare(
                             a.getReportId(),
@@ -71,6 +80,7 @@ public class DistributionNetwork {
                 };
             }
         };
+
 
         // Create priority queue
         repairQueue =
@@ -129,6 +139,81 @@ public class DistributionNetwork {
 
 
     // --------------------------------------------------
+    // ACTIVATE APPROVED BACKUP LINK
+    // --------------------------------------------------
+
+    public void activateBackupLink(FeederLine backupLine) {
+
+        // Check whether the selected line is actually
+        // an approved backup link
+        if (!backupLine.isBackupLink()) {
+
+            System.out.println(
+                    "This is not an approved backup link."
+            );
+
+            return;
+        }
+
+
+        // Check whether it has already been activated
+        if (activeBackupLinks.contains(backupLine)) {
+
+            System.out.println(
+                    "This backup link is already active."
+            );
+
+            return;
+        }
+
+
+        // Check whether the backup line itself has failed
+        if (!backupLine.isWorking()) {
+
+            System.out.println(
+                    "This backup link is currently failed and cannot be activated."
+            );
+
+            return;
+        }
+
+
+        // Activate the approved backup connection
+        activeBackupLinks.add(backupLine);
+
+
+        System.out.println(
+                "\nApproved backup link activated:"
+        );
+
+        System.out.println(
+                backupLine.getFrom()
+                        + " -> "
+                        + backupLine.getTo()
+        );
+
+
+        // Recalculate network connectivity
+        System.out.println(
+                "\nRecalculating network connectivity..."
+        );
+
+        displayAffectedAreas();
+    }
+
+
+    // --------------------------------------------------
+    // CHECK WHETHER BACKUP LINK IS ACTIVE
+    // --------------------------------------------------
+
+    public boolean isBackupLinkActive(
+            FeederLine backupLine) {
+
+        return activeBackupLinks.contains(backupLine);
+    }
+
+
+    // --------------------------------------------------
     // BFS - FIND CONNECTED NODES
     // --------------------------------------------------
 
@@ -176,9 +261,11 @@ public class DistributionNetwork {
                 }
 
 
-                // Do not use approved backup links
-                // during normal BFS
-                if (line.isBackupLink()) {
+                // Backup links are used only when
+                // explicitly activated by the operator
+                if (line.isBackupLink()
+                        && !activeBackupLinks.contains(line)) {
+
                     continue;
                 }
 
@@ -365,6 +452,7 @@ public class DistributionNetwork {
             }
         }
 
+
         return null;
     }
 
@@ -532,7 +620,7 @@ public class DistributionNetwork {
     // DISPLAY APPROVED ALTERNATE CONNECTIONS
     // --------------------------------------------------
 
-    public void displayBackupLinks() {
+    public void displayApprovedBackupLinks() {
 
         System.out.println(
                 "\n--- Approved Alternate Connections ---"
@@ -541,7 +629,13 @@ public class DistributionNetwork {
 
         boolean found = false;
 
+        // This HashSet prevents the same backup connection
+        // from being displayed more than once.
+        HashSet<String> displayedConnections =
+                new HashSet<>();
 
+
+        // Go through all nodes in the graph
         for (ArrayList<FeederLine> lines :
                 graph.values()) {
 
@@ -549,25 +643,72 @@ public class DistributionNetwork {
                     lines) {
 
                 // Only display backup links
-                if (line.isBackupLink()) {
-
-                    // Prevent duplicate display
-                    if (line.getFrom().compareTo(
-                            line.getTo()) < 0) {
-
-                        System.out.println(
-                                line.getFrom()
-                                        + " -> "
-                                        + line.getTo()
-                                        + " | "
-                                        + (line.isWorking()
-                                        ? "AVAILABLE"
-                                        : "FAILED")
-                        );
-
-                        found = true;
-                    }
+                if (!line.isBackupLink()) {
+                    continue;
                 }
+
+
+                // Create a unique key for the connection.
+                // Sorting the two endpoint names means:
+                // Area D -> Area G
+                // and
+                // Area G -> Area D
+                // are treated as the same connection.
+                String node1 = line.getFrom();
+                String node2 = line.getTo();
+
+                String connectionKey;
+
+                if (node1.compareTo(node2) < 0) {
+
+                    connectionKey =
+                            node1 + " -> " + node2;
+
+                } else {
+
+                    connectionKey =
+                            node2 + " -> " + node1;
+                }
+
+
+                // Skip if this connection was already displayed
+                if (displayedConnections.contains(connectionKey)) {
+                    continue;
+                }
+
+
+                displayedConnections.add(connectionKey);
+
+
+                String status;
+
+
+                if (!line.isWorking()) {
+
+                    status = "FAILED";
+
+                } else if (activeBackupLinks.contains(line)) {
+
+                    status = "ACTIVE";
+
+                } else {
+
+                    status = "AVAILABLE";
+                }
+
+
+                // Always display the connection in the
+                // original direction stored in FeederLine
+                System.out.println(
+                        line.getFrom()
+                                + " -> "
+                                + line.getTo()
+                                + " | "
+                                + status
+                );
+
+
+                found = true;
             }
         }
 
@@ -618,24 +759,35 @@ public class DistributionNetwork {
                 }
 
 
+                String status;
+
+
+                if (!line.isWorking()) {
+
+                    status = "FAILED";
+
+                } else if (line.isBackupLink()
+                        && activeBackupLinks.contains(line)) {
+
+                    status = "BACKUP ACTIVE";
+
+                } else if (line.isBackupLink()) {
+
+                    status = "BACKUP AVAILABLE";
+
+                } else {
+
+                    status = "WORKING";
+                }
+
+
                 System.out.println(
                         "  -> "
                                 + next
                                 + " | "
-                                + (line.isWorking()
-                                ? "WORKING"
-                                : "FAILED")
+                                + status
                 );
             }
         }
-
-    }
-    public void displayApprovedBackupLinks() {
-
-        System.out.println();
-        System.out.println("--- Approved Alternate Connections ---");
-
-        System.out.println("Area D -> Area G | AVAILABLE");
-        System.out.println("Area B -> Area H | AVAILABLE");
     }
 }
