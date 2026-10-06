@@ -6,6 +6,7 @@ class Main {
 
         Scanner scanner = new Scanner(System.in);
 
+
         // ==========================================
         // CREATE DISTRIBUTION NETWORK
         // ==========================================
@@ -224,7 +225,7 @@ class Main {
 
         int choice = 0;
 
-        while (choice != 8) {
+        while (choice != 9) {
 
             System.out.println();
             System.out.println("========================================");
@@ -238,7 +239,8 @@ class Main {
             System.out.println("5. Assign Repair Team");
             System.out.println("6. Complete Repair");
             System.out.println("7. View Approved Alternate Connections");
-            System.out.println("8. Exit");
+            System.out.println("8. Activate Approved Backup Connection");
+            System.out.println("9. Exit");
 
             System.out.print("\nEnter your choice: ");
 
@@ -310,42 +312,43 @@ class Main {
 
 
                 if (lineChoice == 1) {
+
                     selectedLine = line1;
-                }
 
-                else if (lineChoice == 2) {
+                } else if (lineChoice == 2) {
+
                     selectedLine = line2;
-                }
 
-                else if (lineChoice == 3) {
+                } else if (lineChoice == 3) {
+
                     selectedLine = line3;
-                }
 
-                else if (lineChoice == 4) {
+                } else if (lineChoice == 4) {
+
                     selectedLine = line4;
-                }
 
-                else if (lineChoice == 5) {
+                } else if (lineChoice == 5) {
+
                     selectedLine = line5;
-                }
 
-                else if (lineChoice == 6) {
+                } else if (lineChoice == 6) {
+
                     selectedLine = line6;
-                }
 
-                else if (lineChoice == 7) {
+                } else if (lineChoice == 7) {
+
                     selectedLine = line7;
-                }
 
-                else if (lineChoice == 8) {
+                } else if (lineChoice == 8) {
+
                     selectedLine = line8;
-                }
 
-                else if (lineChoice == 9) {
+                } else if (lineChoice == 9) {
+
                     selectedLine = line9;
-                }
 
-                else if (lineChoice == 10) {
+                } else if (lineChoice == 10) {
+
                     selectedLine = line10;
                 }
 
@@ -356,17 +359,13 @@ class Main {
                             "Invalid line selection."
                     );
 
-                }
-
-                else if (!selectedLine.isWorking()) {
+                } else if (!selectedLine.isWorking()) {
 
                     System.out.println(
                             "This line has already failed."
                     );
 
-                }
-
-                else {
+                } else {
 
                     // Fail the selected line
                     selectedLine.failLine();
@@ -419,8 +418,13 @@ class Main {
                         "\n--- Assign Repair Team ---"
                 );
 
+
+                // Show current repair priority first
+                network.displayRepairQueue();
+
+
                 System.out.print(
-                        "Enter Fault Report ID: "
+                        "\nEnter Fault Report ID: "
                 );
 
                 int reportId =
@@ -437,10 +441,43 @@ class Main {
                 if (report == null) {
 
                     System.out.println(
-                            "Fault Report not found."
+                            "\nFault Report not found."
+                    );
+
+                    System.out.println(
+                            "Please enter the Report ID exactly as shown above."
+                    );
+
+                } else if (report.isCompleted()) {
+
+                    System.out.println(
+                            "\nThis repair has already been completed."
                     );
 
                 } else {
+
+                    System.out.println(
+                            "\nSelected Fault Report:"
+                    );
+
+                    System.out.println(
+                            "Report ID: FR-"
+                                    + String.format(
+                                    "%03d",
+                                    report.getReportId()
+                            )
+                    );
+
+                    System.out.println(
+                            "Critical Areas Affected: "
+                                    + report.getCriticalAreasAffected()
+                    );
+
+                    System.out.println(
+                            "Consumers Affected: "
+                                    + report.getConsumersAffected()
+                    );
+
 
                     System.out.println(
                             "\nAvailable Repair Teams:"
@@ -515,8 +552,12 @@ class Main {
                 );
 
 
+                // Show current repair priority first
+                network.displayRepairQueue();
+
+
                 System.out.print(
-                        "Enter Fault Report ID: "
+                        "\nEnter Fault Report ID: "
                 );
 
                 int reportId =
@@ -525,7 +566,6 @@ class Main {
                 scanner.nextLine();
 
 
-                // Find the fault report
                 FaultReport report =
                         network.getFaultReportById(reportId);
 
@@ -533,7 +573,11 @@ class Main {
                 if (report == null) {
 
                     System.out.println(
-                            "Fault Report not found."
+                            "\nFault Report not found."
+                    );
+
+                    System.out.println(
+                            "Please enter the Report ID exactly as shown above."
                     );
 
                 } else {
@@ -545,7 +589,7 @@ class Main {
 
 
             // ======================================
-            // OPTION 7 - APPROVED ALTERNATE LINKS
+            // OPTION 7 - VIEW APPROVED BACKUP LINKS
             // ======================================
 
             else if (choice == 7) {
@@ -555,10 +599,65 @@ class Main {
 
 
             // ======================================
+            // OPTION 8 - ACTIVATE APPROVED BACKUP
+            // ======================================
+
+            else if (choice == 8) {
+
+                System.out.println(
+                        "\n--- Activate Approved Backup Connection ---"
+                );
+
+                System.out.println(
+                        "Only predefined approved backup links can be activated."
+                );
+
+                System.out.println();
+
+                System.out.println(
+                        "1. Area D -> Area G"
+                );
+
+                System.out.println(
+                        "2. Area B -> Area H"
+                );
+
+                System.out.print(
+                        "\nSelect backup connection: "
+                );
+
+                int backupChoice =
+                        scanner.nextInt();
+
+                scanner.nextLine();
+
+
+                if (backupChoice == 1) {
+
+                    network.activateBackupLink(
+                            backup1
+                    );
+
+                } else if (backupChoice == 2) {
+
+                    network.activateBackupLink(
+                            backup2
+                    );
+
+                } else {
+
+                    System.out.println(
+                            "Invalid backup connection selection."
+                    );
+                }
+            }
+
+
+            // ======================================
             // INVALID OPTION
             // ======================================
 
-            else if (choice != 8) {
+            else if (choice != 9) {
 
                 System.out.println(
                         "\nInvalid choice. Please try again."
