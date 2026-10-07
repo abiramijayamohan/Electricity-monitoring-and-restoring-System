@@ -2,87 +2,122 @@ import java.util.*;
 
 public class DistributionNetwork {
 
-    // Stores all consumer areas
     private HashMap<String, ConsumerArea> areas;
 
-    // Stores all substations
     private HashMap<String, Substation> substations;
 
-    // Adjacency list for the electricity network
     private HashMap<String, ArrayList<FeederLine>> graph;
 
-    // Stores all fault reports
     private ArrayList<FaultReport> faultReports;
 
-    // Priority queue for repair jobs
     private PriorityQueue<FaultReport> repairQueue;
 
-    // Restoration policy
     private RestorationPolicy restorationPolicy;
 
-    // Stores backup links that have been activated by the operator
     private HashSet<FeederLine> activeBackupLinks;
 
-
-    // --------------------------------------------------
-    // CONSTRUCTOR
-    // --------------------------------------------------
 
     public DistributionNetwork() {
 
         areas = new HashMap<>();
+
         substations = new HashMap<>();
+
         graph = new HashMap<>();
 
         faultReports = new ArrayList<>();
 
-        // Backup links are inactive when the system starts
         activeBackupLinks = new HashSet<>();
 
 
-        // Define restoration priority
-        restorationPolicy = new RestorationPolicy() {
+        restorationPolicy =
+                new RestorationPolicy() {
 
-            @Override
-            public Comparator<FaultReport> getComparator() {
+                    @Override
+                    public Comparator<FaultReport>
+                    getComparator() {
 
-                return (a, b) -> {
+                        return (a, b) -> {
 
-                    // 1. Critical areas affected
-                    // Higher number gets higher priority
-                    if (a.getCriticalAreasAffected()
-                            != b.getCriticalAreasAffected()) {
+                            // ==========================================
+                            // 1. CRITICAL AREAS ALWAYS HAVE PRIORITY
+                            // ==========================================
 
-                        return Integer.compare(
-                                b.getCriticalAreasAffected(),
-                                a.getCriticalAreasAffected()
-                        );
+                            boolean aCritical =
+                                    a.getCriticalAreasAffected()
+                                            > 0;
+
+                            boolean bCritical =
+                                    b.getCriticalAreasAffected()
+                                            > 0;
+
+
+                            if (aCritical != bCritical) {
+
+                                return Boolean.compare(
+                                        bCritical,
+                                        aCritical
+                                );
+                            }
+
+
+                            // ==========================================
+                            // 2. AMONG CRITICAL REPORTS
+                            //
+                            //    COMPARE CRITICAL CONSUMERS ONLY
+                            //
+                            //    General consumers are NOT considered
+                            //    when comparing critical reports.
+                            // ==========================================
+
+                            if (aCritical) {
+
+                                if (a.getCriticalConsumersAffected()
+                                        != b.getCriticalConsumersAffected()) {
+
+                                    return Integer.compare(
+                                            b.getCriticalConsumersAffected(),
+                                            a.getCriticalConsumersAffected()
+                                    );
+                                }
+                            }
+
+
+                            // ==========================================
+                            // 3. AMONG GENERAL REPORTS
+                            //
+                            //    COMPARE GENERAL CONSUMERS
+                            //    FROM HIGHEST TO LOWEST
+                            // ==========================================
+
+                            else {
+
+                                if (a.getGeneralConsumersAffected()
+                                        != b.getGeneralConsumersAffected()) {
+
+                                    return Integer.compare(
+                                            b.getGeneralConsumersAffected(),
+                                            a.getGeneralConsumersAffected()
+                                    );
+                                }
+                            }
+
+
+                            // ==========================================
+                            // 4. IF PRIORITY IS STILL EQUAL
+                            //
+                            //    LOWER REPORT ID FIRST
+                            // ==========================================
+
+                            return Integer.compare(
+                                    a.getReportId(),
+                                    b.getReportId()
+                            );
+                        };
                     }
-
-
-                    // 2. Consumers affected
-                    // Higher number gets higher priority
-                    if (a.getConsumersAffected()
-                            != b.getConsumersAffected()) {
-
-                        return Integer.compare(
-                                b.getConsumersAffected(),
-                                a.getConsumersAffected()
-                        );
-                    }
-
-
-                    // 3. Lower report ID first
-                    return Integer.compare(
-                            a.getReportId(),
-                            b.getReportId()
-                    );
                 };
-            }
-        };
 
 
-        // Create priority queue
         repairQueue =
                 new PriorityQueue<>(
                         restorationPolicy.getComparator()
@@ -90,17 +125,15 @@ public class DistributionNetwork {
     }
 
 
-    // --------------------------------------------------
-    // ADD SUBSTATION
-    // --------------------------------------------------
-
-    public void addSubstation(Substation substation) {
+    public void addSubstation(
+            Substation substation) {
 
         substations.put(
                 substation.getId(),
                 substation
         );
 
+
         graph.put(
                 substation.getId(),
                 new ArrayList<>()
@@ -108,16 +141,14 @@ public class DistributionNetwork {
     }
 
 
-    // --------------------------------------------------
-    // ADD CONSUMER AREA
-    // --------------------------------------------------
-
-    public void addArea(ConsumerArea area) {
+    public void addArea(
+            ConsumerArea area) {
 
         areas.put(
                 area.getName(),
                 area
         );
+
 
         graph.put(
                 area.getName(),
@@ -126,26 +157,23 @@ public class DistributionNetwork {
     }
 
 
-    // --------------------------------------------------
-    // ADD FEEDER LINE
-    // --------------------------------------------------
+    public void addLine(
+            FeederLine line) {
 
-    public void addLine(FeederLine line) {
+        graph.get(
+                line.getFrom()
+        ).add(line);
 
-        graph.get(line.getFrom()).add(line);
 
-        graph.get(line.getTo()).add(line);
+        graph.get(
+                line.getTo()
+        ).add(line);
     }
 
 
-    // --------------------------------------------------
-    // ACTIVATE APPROVED BACKUP LINK
-    // --------------------------------------------------
+    public void activateBackupLink(
+            FeederLine backupLine) {
 
-    public void activateBackupLink(FeederLine backupLine) {
-
-        // Check whether the selected line is actually
-        // an approved backup link
         if (!backupLine.isBackupLink()) {
 
             System.out.println(
@@ -156,8 +184,8 @@ public class DistributionNetwork {
         }
 
 
-        // Check whether it has already been activated
-        if (activeBackupLinks.contains(backupLine)) {
+        if (activeBackupLinks.contains(
+                backupLine)) {
 
             System.out.println(
                     "This backup link is already active."
@@ -167,7 +195,6 @@ public class DistributionNetwork {
         }
 
 
-        // Check whether the backup line itself has failed
         if (!backupLine.isWorking()) {
 
             System.out.println(
@@ -178,13 +205,15 @@ public class DistributionNetwork {
         }
 
 
-        // Activate the approved backup connection
-        activeBackupLinks.add(backupLine);
+        activeBackupLinks.add(
+                backupLine
+        );
 
 
         System.out.println(
                 "\nApproved backup link activated:"
         );
+
 
         System.out.println(
                 backupLine.getFrom()
@@ -193,40 +222,35 @@ public class DistributionNetwork {
         );
 
 
-        // Recalculate network connectivity
         System.out.println(
                 "\nRecalculating network connectivity..."
         );
+
 
         displayAffectedAreas();
     }
 
 
-    // --------------------------------------------------
-    // CHECK WHETHER BACKUP LINK IS ACTIVE
-    // --------------------------------------------------
-
     public boolean isBackupLinkActive(
             FeederLine backupLine) {
 
-        return activeBackupLinks.contains(backupLine);
+        return activeBackupLinks.contains(
+                backupLine
+        );
     }
 
 
-    // --------------------------------------------------
-    // BFS - FIND CONNECTED NODES
-    // --------------------------------------------------
-
-    public HashSet<String> findConnectedNodes() {
+    public HashSet<String>
+    findConnectedNodes() {
 
         HashSet<String> visited =
                 new HashSet<>();
+
 
         Queue<String> queue =
                 new LinkedList<>();
 
 
-        // Start BFS from active substations
         for (Substation substation :
                 substations.values()) {
 
@@ -243,26 +267,21 @@ public class DistributionNetwork {
         }
 
 
-        // BFS traversal
         while (!queue.isEmpty()) {
 
             String current =
                     queue.poll();
 
 
-            // Check all lines connected to current node
             for (FeederLine line :
                     graph.get(current)) {
 
-
-                // Do not use failed lines
                 if (!line.isWorking()) {
+
                     continue;
                 }
 
 
-                // Backup links are used only when
-                // explicitly activated by the operator
                 if (line.isBackupLink()
                         && !activeBackupLinks.contains(line)) {
 
@@ -273,7 +292,6 @@ public class DistributionNetwork {
                 String next;
 
 
-                // Find the other end of the line
                 if (line.getFrom().equals(current)) {
 
                     next = line.getTo();
@@ -284,7 +302,6 @@ public class DistributionNetwork {
                 }
 
 
-                // Visit unvisited node
                 if (!visited.contains(next)) {
 
                     visited.add(next);
@@ -298,10 +315,6 @@ public class DistributionNetwork {
         return visited;
     }
 
-
-    // --------------------------------------------------
-    // DISPLAY AFFECTED AREAS
-    // --------------------------------------------------
 
     public void displayAffectedAreas() {
 
@@ -340,113 +353,132 @@ public class DistributionNetwork {
     }
 
 
-    // --------------------------------------------------
-    // CREATE FAULT REPORT
-    // --------------------------------------------------
-
     public void createFaultReport(
             FeederLine failedLine,
             int repairMinutes) {
 
-        // Find all nodes that are still connected
         HashSet<String> connected =
                 findConnectedNodes();
 
 
-        int criticalAreas = 0;
+        int criticalAreas =
+                0;
 
-        int affectedConsumers = 0;
+
+        int criticalConsumers =
+                0;
 
 
-        // Check every consumer area
+        int generalConsumers =
+                0;
+
+
+        // ==========================================
+        // CALCULATE AFFECTED CONSUMERS
+        // SEPARATELY FOR CRITICAL AND GENERAL AREAS
+        // ==========================================
+
         for (ConsumerArea area :
                 areas.values()) {
 
-            // If BFS cannot reach this area,
-            // it is affected.
-            if (!connected.contains(area.getName())) {
-
-                // Add its consumers
-                affectedConsumers =
-                        affectedConsumers
-                                + area.getConsumers();
+            if (!connected.contains(
+                    area.getName())) {
 
 
-                // CriticalArea has priority 2
-                if (area.restorationPriority() == 2) {
+                if (area.restorationPriority()
+                        == 2) {
 
                     criticalAreas++;
+
+
+                    criticalConsumers =
+                            criticalConsumers
+                                    + area.getConsumers();
+
+                } else {
+
+                    generalConsumers =
+                            generalConsumers
+                                    + area.getConsumers();
                 }
             }
         }
 
 
-        // Create a new report ID
+        int totalConsumers =
+                criticalConsumers
+                        + generalConsumers;
+
+
         int reportId =
                 faultReports.size() + 1;
 
 
-        // Create the fault report
         FaultReport report =
                 new FaultReport(
                         reportId,
                         failedLine,
                         repairMinutes,
                         criticalAreas,
-                        affectedConsumers
+                        criticalConsumers,
+                        generalConsumers
                 );
 
 
-        // Add report to list and priority queue
         addFaultReport(report);
 
 
-        // Display report information
         System.out.println(
                 "\nFault Report Created!"
         );
 
+
         System.out.println(
                 "Report ID: FR-"
-                        + String.format("%03d", reportId)
+                        + String.format(
+                        "%03d",
+                        reportId
+                )
         );
+
 
         System.out.println(
                 "Critical Areas Affected: "
                         + criticalAreas
         );
 
+
+
         System.out.println(
                 "Consumers Affected: "
-                        + affectedConsumers
+                        + totalConsumers
         );
     }
 
 
-    // --------------------------------------------------
-    // ADD FAULT REPORT
-    // --------------------------------------------------
-
     public void addFaultReport(
             FaultReport report) {
 
-        faultReports.add(report);
+        faultReports.add(
+                report
+        );
 
-        repairQueue.add(report);
+
+        repairQueue.add(
+                report
+        );
     }
 
 
-    // --------------------------------------------------
-    // FIND FAULT REPORT BY ID
-    // --------------------------------------------------
-
-    public FaultReport getFaultReportById(
+    public FaultReport
+    getFaultReportById(
             int reportId) {
 
         for (FaultReport report :
                 faultReports) {
 
-            if (report.getReportId() == reportId) {
+            if (report.getReportId()
+                    == reportId) {
 
                 return report;
             }
@@ -456,10 +488,6 @@ public class DistributionNetwork {
         return null;
     }
 
-
-    // --------------------------------------------------
-    // DISPLAY REPAIR PRIORITY QUEUE
-    // --------------------------------------------------
 
     public void displayRepairQueue() {
 
@@ -478,9 +506,8 @@ public class DistributionNetwork {
         }
 
 
-        // Temporary queue so original queue
-        // is not destroyed
-        PriorityQueue<FaultReport> tempQueue =
+        PriorityQueue<FaultReport>
+                tempQueue =
                 new PriorityQueue<>(
                         repairQueue
                 );
@@ -497,23 +524,17 @@ public class DistributionNetwork {
                             + report.getReportId()
                             + " | Critical Areas: "
                             + report.getCriticalAreasAffected()
-                            + " | Consumers: "
+                            + " | Total Consumers: "
                             + report.getConsumersAffected()
             );
         }
     }
 
 
-    // --------------------------------------------------
-    // ASSIGN REPAIR TEAM
-    // --------------------------------------------------
-
     public void assignRepairTeam(
             FaultReport report,
             RepairTeam team) {
 
-
-        // Check whether repair is already completed
         if (report.isCompleted()) {
 
             System.out.println(
@@ -524,7 +545,6 @@ public class DistributionNetwork {
         }
 
 
-        // Check whether team is available
         if (!team.isAvailable()) {
 
             System.out.println(
@@ -536,8 +556,9 @@ public class DistributionNetwork {
         }
 
 
-        // Assign team to report
-        report.assignTeam(team);
+        report.assignTeam(
+                team
+        );
 
 
         System.out.println(
@@ -548,15 +569,9 @@ public class DistributionNetwork {
     }
 
 
-    // --------------------------------------------------
-    // COMPLETE REPAIR
-    // --------------------------------------------------
-
     public void completeRepair(
             FaultReport report) {
 
-
-        // Check whether already completed
         if (report.isCompleted()) {
 
             System.out.println(
@@ -567,8 +582,8 @@ public class DistributionNetwork {
         }
 
 
-        // Check whether a team has been assigned
-        if (report.getAssignedTeam() == null) {
+        if (report.getAssignedTeam()
+                == null) {
 
             System.out.println(
                     "No repair team assigned."
@@ -578,12 +593,12 @@ public class DistributionNetwork {
         }
 
 
-        // Complete the repair
         report.completeRepair();
 
 
-        // Remove completed report from priority queue
-        repairQueue.remove(report);
+        repairQueue.remove(
+                report
+        );
 
 
         System.out.println(
@@ -606,7 +621,6 @@ public class DistributionNetwork {
         );
 
 
-        // Run BFS again
         System.out.println(
                 "\nRecalculating network connectivity..."
         );
@@ -615,10 +629,6 @@ public class DistributionNetwork {
         displayAffectedAreas();
     }
 
-
-    // --------------------------------------------------
-    // DISPLAY APPROVED ALTERNATE CONNECTIONS
-    // --------------------------------------------------
 
     public void displayApprovedBackupLinks() {
 
@@ -629,55 +639,61 @@ public class DistributionNetwork {
 
         boolean found = false;
 
-        // This HashSet prevents the same backup connection
-        // from being displayed more than once.
-        HashSet<String> displayedConnections =
+
+        HashSet<String>
+                displayedConnections =
                 new HashSet<>();
 
 
-        // Go through all nodes in the graph
         for (ArrayList<FeederLine> lines :
                 graph.values()) {
 
             for (FeederLine line :
                     lines) {
 
-                // Only display backup links
                 if (!line.isBackupLink()) {
+
                     continue;
                 }
 
 
-                // Create a unique key for the connection.
-                // Sorting the two endpoint names means:
-                // Area D -> Area G
-                // and
-                // Area G -> Area D
-                // are treated as the same connection.
-                String node1 = line.getFrom();
-                String node2 = line.getTo();
+                String node1 =
+                        line.getFrom();
+
+                String node2 =
+                        line.getTo();
+
 
                 String connectionKey;
 
-                if (node1.compareTo(node2) < 0) {
+
+                if (node1.compareTo(node2)
+                        < 0) {
 
                     connectionKey =
-                            node1 + " -> " + node2;
+                            node1
+                                    + " -> "
+                                    + node2;
 
                 } else {
 
                     connectionKey =
-                            node2 + " -> " + node1;
+                            node2
+                                    + " -> "
+                                    + node1;
                 }
 
 
-                // Skip if this connection was already displayed
-                if (displayedConnections.contains(connectionKey)) {
+                if (displayedConnections
+                        .contains(connectionKey)) {
+
                     continue;
                 }
 
 
-                displayedConnections.add(connectionKey);
+                displayedConnections.add(
+                        connectionKey
+                );
 
 
                 String status;
@@ -687,7 +703,9 @@ public class DistributionNetwork {
 
                     status = "FAILED";
 
-                } else if (activeBackupLinks.contains(line)) {
+                } else if (
+                        activeBackupLinks.contains(
+                                line)) {
 
                     status = "ACTIVE";
 
@@ -697,8 +715,6 @@ public class DistributionNetwork {
                 }
 
 
-                // Always display the connection in the
-                // original direction stored in FeederLine
                 System.out.println(
                         line.getFrom()
                                 + " -> "
@@ -722,10 +738,6 @@ public class DistributionNetwork {
     }
 
 
-    // --------------------------------------------------
-    // DISPLAY NETWORK
-    // --------------------------------------------------
-
     public void displayNetwork() {
 
         System.out.println(
@@ -736,7 +748,6 @@ public class DistributionNetwork {
         for (String node :
                 graph.keySet()) {
 
-
             System.out.println(
                     "\n" + node + ":"
             );
@@ -744,7 +755,6 @@ public class DistributionNetwork {
 
             for (FeederLine line :
                     graph.get(node)) {
-
 
                 String next;
 
@@ -766,12 +776,15 @@ public class DistributionNetwork {
 
                     status = "FAILED";
 
-                } else if (line.isBackupLink()
-                        && activeBackupLinks.contains(line)) {
+                } else if (
+                        line.isBackupLink()
+                                && activeBackupLinks.contains(
+                                line)) {
 
                     status = "BACKUP ACTIVE";
 
-                } else if (line.isBackupLink()) {
+                } else if (
+                        line.isBackupLink()) {
 
                     status = "BACKUP AVAILABLE";
 
